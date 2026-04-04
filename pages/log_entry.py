@@ -35,7 +35,7 @@ def show():
     </p>
     """, unsafe_allow_html=True)
 
-    # Student selector — always visible
+    # Student selector
     students = load_students()
     if not students:
         st.warning("No students found in the database.")
@@ -75,7 +75,6 @@ def show():
 
     st.markdown("<hr style='margin:1.5rem 0;'>", unsafe_allow_html=True)
 
-    # ── Four log tabs ────────────────────────────────────────────────────────
     tab_sleep, tab_study, tab_mood, tab_extra = st.tabs([
         "😴  Sleep", "📚  Study", "😊  Mood & Stress", "🏃  Extracurricular"
     ])
@@ -92,37 +91,24 @@ def show():
             sleep_qual = st.selectbox("Sleep Quality",
                                       ["Poor", "Fair", "Good", "Excellent"], key="sl_q")
 
-        st.markdown(f"""
-        <div style='background:#f7f5f0; border-radius:8px; padding:0.8rem 1rem;
-                    margin:1rem 0; font-size:0.85rem; color:#555;'>
-            💡 Recommended: <strong>7–9 hrs</strong> per night.
-            You're logging <strong>{sleep_hours} hrs</strong> —
-            {'✅ within range' if 7 <= sleep_hours <= 9
-             else '⚠️ below recommended' if sleep_hours < 7
-             else '⚠️ above recommended'}.
-        </div>
-        """, unsafe_allow_html=True)
-
         if st.button("💾  Save Sleep Log", key="save_sleep"):
             try:
-                new_id = next_id("Sleep_Log_Seq")
+                # FIX: Corrected sequence name to match your SQL schema
+                new_id = next_id("SleepLog_Seq") 
                 run_dml("""
                     INSERT INTO Sleep_Logs
                         (Sleep_ID, Student_ID, Sleep_Date, Sleep_Hours, Sleep_Quality)
                     VALUES (:1, :2, TO_DATE(:3,'YYYY-MM-DD'), :4, :5)
                 """, [new_id, student_id, str(sleep_date), sleep_hours, sleep_qual])
-                st.success("✅ Sleep log saved! Burnout score recalculated automatically via trigger.")
+                st.success("✅ Sleep log saved!")
             except Exception as e:
-                if "ORA-00001" in str(e):
-                    st.warning("A sleep entry already exists for this date. Please choose a different date.")
-                else:
-                    st.error(f"Error: {e}")
+                st.error(f"Error: {e}")
 
-        # Show recent sleep logs
         st.markdown("##### Recent Entries (last 7 days)")
         try:
+            # FIX: Changed alias 'Date' to 'Log_Date' to avoid ORA-00923
             sl_df = get_df("""
-                SELECT TO_CHAR(Sleep_Date,'DD-Mon-YYYY') AS Date,
+                SELECT TO_CHAR(Sleep_Date,'DD-Mon-YYYY') AS Log_Date,
                        Sleep_Hours AS Hours,
                        NVL(Sleep_Quality,'—') AS Quality
                 FROM Sleep_Logs
@@ -135,7 +121,7 @@ def show():
             else:
                 st.dataframe(sl_df, use_container_width=True, hide_index=True)
         except Exception as e:
-            st.caption(f"Could not load logs: {e}")
+            st.error(f"Could not load logs: {e}")
 
     # ── STUDY LOG ────────────────────────────────────────────────────────────
     with tab_study:
@@ -152,64 +138,18 @@ def show():
             with sc3:
                 study_hours = st.slider("Hours Studied", 0.0, 16.0, 2.0, 0.5, key="st_hrs")
 
-            # Upcoming assessment for this course
-            try:
-                assess_df = get_df("""
-                    SELECT Assessment_ID,
-                           Assessment_Type || ' — ' ||
-                           TO_CHAR(Assessment_Date,'DD-Mon-YYYY') AS label
-                    FROM Assessments_Schedule
-                    WHERE Course_ID = :1
-                      AND Assessment_Date >= SYSDATE
-                    ORDER BY Assessment_Date ASC
-                """, [courses[sel_course]])
-                if not assess_df.empty:
-                    assess_options = {"None": None}
-                    for _, ar in assess_df.iterrows():
-                        assess_options[ar["LABEL"]] = ar["ASSESSMENT_ID"]
-                    sel_assess_label = st.selectbox(
-                        "Preparing for assessment (optional)",
-                        list(assess_options.keys()), key="st_assess"
-                    )
-                    sel_assess_id = assess_options[sel_assess_label]
-                else:
-                    sel_assess_id = None
-                    st.caption("No upcoming assessments found for this course.")
-            except Exception:
-                sel_assess_id = None
-
             if st.button("💾  Save Study Log", key="save_study"):
                 try:
-                    new_id = next_id("Study_Log_Seq")
+                    # FIX: Corrected sequence name
+                    new_id = next_id("StudyLog_Seq")
                     run_dml("""
                         INSERT INTO Study_Logs
-                            (Log_ID, Student_ID, Course_ID, Assessment_ID,
-                             Log_Date, Study_Hours)
-                        VALUES (:1, :2, :3, :4, TO_DATE(:5,'YYYY-MM-DD'), :6)
-                    """, [new_id, student_id, courses[sel_course],
-                          sel_assess_id, str(study_date), study_hours])
-                    st.success("✅ Study log saved! Burnout score updated.")
+                            (Log_ID, Student_ID, Course_ID, Log_Date, Study_Hours)
+                        VALUES (:1, :2, :3, TO_DATE(:4,'YYYY-MM-DD'), :5)
+                    """, [new_id, student_id, courses[sel_course], str(study_date), study_hours])
+                    st.success("✅ Study log saved!")
                 except Exception as e:
                     st.error(f"Error: {e}")
-
-            # Total hours per course this week
-            st.markdown("##### Study Hours This Week (by Course)")
-            try:
-                week_df = get_df("""
-                    SELECT c.Course_Name, ROUND(SUM(sl.Study_Hours),1) AS Total_Hrs
-                    FROM Study_Logs sl
-                    JOIN Course_Load c ON sl.Course_ID = c.Course_ID
-                    WHERE sl.Student_ID = :1
-                      AND sl.Log_Date >= SYSDATE - 7
-                    GROUP BY c.Course_Name
-                    ORDER BY Total_Hrs DESC
-                """, [student_id])
-                if week_df.empty:
-                    st.caption("No study logs this week.")
-                else:
-                    st.bar_chart(week_df.set_index("COURSE_NAME")["TOTAL_HRS"])
-            except Exception as e:
-                st.caption(f"Could not load chart: {e}")
 
     # ── MOOD LOG ─────────────────────────────────────────────────────────────
     with tab_mood:

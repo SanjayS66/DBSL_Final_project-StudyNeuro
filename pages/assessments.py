@@ -15,82 +15,99 @@ def show():
         "📅  Upcoming", "➕  Add Assessment", "🔗  Stress Correlation"
     ])
 
-    # ── UPCOMING ASSESSMENTS ─────────────────────────────────────────────────
+# ── UPCOMING ASSESSMENTS ─────────────────────────────────────────────────
     with tab_view:
         st.markdown("#### Assessments in the Next 30 Days")
+        
+        # FIX: Changed alias 'Date' to 'Exam_Date' to avoid Oracle Reserved Word conflict
+        # FIX: Ensure column selection matches the keys used in the UI loop
+        query_upcoming = """
+            SELECT 
+                a.Assessment_ID,
+                c.Course_Name,
+                a.Assessment_Type,
+                TO_CHAR(a.Assessment_Date, 'DD-Mon-YYYY') AS Exam_Date,
+                a.Weightage                              AS Weightage_Pct,
+                TRUNC(a.Assessment_Date - SYSDATE)       AS Days_Away
+            FROM Assessments_Schedule a
+            JOIN Course_Load c ON a.Course_ID = c.Course_ID
+            WHERE a.Assessment_Date BETWEEN SYSDATE AND SYSDATE + 30
+            ORDER BY a.Assessment_Date ASC
+        """
+        
         try:
-            upcoming_df = get_df("""
-                SELECT
-                    a.Assessment_ID,
-                    c.Course_Name,
-                    a.Assessment_Type,
-                    TO_CHAR(a.Assessment_Date,'DD-Mon-YYYY') AS Date,
-                    a.Weightage                              AS Weightage_Pct,
-                    TRUNC(a.Assessment_Date - SYSDATE)       AS Days_Away
-                FROM Assessments_Schedule a
-                JOIN Course_Load c ON a.Course_ID = c.Course_ID
-                WHERE a.Assessment_Date BETWEEN SYSDATE AND SYSDATE + 30
-                ORDER BY a.Assessment_Date ASC
-            """)
+            upcoming_df = get_df(query_upcoming)
 
             if upcoming_df.empty:
                 st.info("No assessments scheduled in the next 30 days.")
             else:
                 type_colors = {
-                    "End-Sem":   ("#fee2e2", "#991b1b"),
-                    "Mid-Sem":   ("#fef3c7", "#92400e"),
-                    "Quiz":      ("#dbeafe", "#1e40af"),
-                    "Assignment":("#d1fae5", "#065f46"),
+                    "End-Sem":    ("#fee2e2", "#991b1b"),
+                    "Mid-Sem":    ("#fef3c7", "#92400e"),
+                    "Quiz":       ("#dbeafe", "#1e40af"),
+                    "Assignment": ("#d1fae5", "#065f46"),
                 }
+
                 for _, row in upcoming_df.iterrows():
-                    bg, fg = type_colors.get(row["ASSESSMENT_TYPE"], ("#f3f4f6","#374151"))
-                    days = int(row["DAYS_AWAY"]) if row["DAYS_AWAY"] is not None else "?"
-                    urgency = ""
-                    if isinstance(days, int):
-                        if days <= 3:   urgency = "🔴 Imminent"
-                        elif days <= 7: urgency = "🟠 This Week"
-                        else:           urgency = "🟢 Upcoming"
+                    # NOTE: Oracle/Pandas usually returns columns in UPPERCASE
+                    a_type = row.get("ASSESSMENT_TYPE", "Other")
+                    course = row.get("COURSE_NAME", "Unknown Course")
+                    e_date = row.get("EXAM_DATE", "N/A")
+                    weight = row.get("WEIGHTAGE_PCT", 0)
+                    days_raw = row.get("DAYS_AWAY")
+                    
+                    bg, fg = type_colors.get(a_type, ("#f3f4f6", "#374151"))
+                    
+                    # Logic for Urgency
+                    days = int(days_raw) if days_raw is not None else 0
+                    if days <= 3:
+                        urgency, icon = "Imminent", "🔴"
+                    elif days <= 7:
+                        urgency, icon = "This Week", "🟠"
+                    else:
+                        urgency, icon = "Upcoming", "🟢"
 
                     st.markdown(f"""
-                    <div class='metric-card' style='padding:0.9rem 1.3rem;
-                                border-left:4px solid {fg};'>
-                        <div style='display:flex; justify-content:space-between;
-                                    align-items:center;'>
+                    <div class='metric-card' style='padding:0.9rem 1.3rem; border-left:4px solid {fg};'>
+                        <div style='display:flex; justify-content:space-between; align-items:center;'>
                             <div>
-                                <span style='font-family:Syne,sans-serif;
-                                             font-weight:700;'>{row['COURSE_NAME']}</span>
+                                <span style='font-family:Syne,sans-serif; font-weight:700; color:#1a1a1a;'>{course}</span>
                                 &nbsp;
-                                <span style='background:{bg}; color:{fg};
-                                             padding:2px 8px; border-radius:12px;
-                                             font-size:0.75rem; font-weight:600;'>
-                                    {row['ASSESSMENT_TYPE']}
+                                <span style='background:{bg}; color:{fg}; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:600;'>
+                                    {a_type}
                                 </span>
                             </div>
                             <div style='text-align:right; font-size:0.83rem; color:#666;'>
-                                <div>{row['DATE']} &nbsp;·&nbsp; {row['WEIGHTAGE_PCT']}% weightage</div>
-                                <div style='margin-top:2px;'>{urgency} — {days} days away</div>
+                                <div><b>{e_date}</b> &nbsp;·&nbsp; {weight}% weightage</div>
+                                <div style='margin-top:2px;'>{icon} {urgency} — {days} days away</div>
                             </div>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
-        except Exception as e:
-            st.error(f"Error loading assessments: {e}")
 
+        except Exception as e:
+            st.error(f"Error loading upcoming assessments: {e}")
+
+        # ── ALL ASSESSMENTS TABLE ────────────────────────────────────────────
         st.markdown("<br>#### All Scheduled Assessments")
+        query_all = """
+            SELECT 
+                c.Course_Name        AS Course,
+                a.Assessment_Type    AS Type,
+                TO_CHAR(a.Assessment_Date, 'DD-Mon-YYYY') AS Exam_Date,
+                a.Weightage          AS Weight_Pct
+            FROM Assessments_Schedule a
+            JOIN Course_Load c ON a.Course_ID = c.Course_ID
+            ORDER BY a.Assessment_Date DESC
+        """
         try:
-            all_df = get_df("""
-                SELECT c.Course_Name,
-                       a.Assessment_Type,
-                       TO_CHAR(a.Assessment_Date,'DD-Mon-YYYY') AS Date,
-                       a.Weightage AS Pct
-                FROM Assessments_Schedule a
-                JOIN Course_Load c ON a.Course_ID = c.Course_ID
-                ORDER BY a.Assessment_Date DESC
-            """)
+            all_df = get_df(query_all)
             if not all_df.empty:
                 st.dataframe(all_df, use_container_width=True, hide_index=True)
+            else:
+                st.caption("No historical or future assessments found in the database.")
         except Exception as e:
-            st.caption(f"Could not load full schedule: {e}")
+            st.error(f"Could not load full schedule: {e}")
 
     # ── ADD ASSESSMENT ───────────────────────────────────────────────────────
     with tab_add:
