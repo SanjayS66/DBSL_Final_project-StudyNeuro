@@ -119,17 +119,25 @@ hr { border-color: #e8e5de; }
 
 # ── Sidebar nav ─────────────────────────────────────────────────────────────
 with st.sidebar:
+    # Corrected CSS placement
     st.markdown("""
-    <div style='padding: 1.2rem 0 2rem 0;'>
-        <div style='font-family: Syne, sans-serif; font-size: 1.5rem;
-                    font-weight: 800; color: #f7f5f0; letter-spacing:-0.03em;'>
-            🧠 MindMetrics
+        <style>
+            /* This hides the default Streamlit nav list */
+            [data-testid="stSidebarNav"] {
+                display: none !important;
+            }
+        </style>
+        
+        <div style='padding: 1.2rem 0 2rem 0;'>
+            <div style='font-family: Syne, sans-serif; font-size: 1.5rem;
+                        font-weight: 800; color: #f7f5f0; letter-spacing:-0.03em;'>
+                🧠 MindMetrics
+            </div>
+            <div style='font-size: 0.75rem; color: #666; margin-top:2px;
+                        letter-spacing:0.08em; text-transform:uppercase;'>
+                Student Wellness Tracker
+            </div>
         </div>
-        <div style='font-size: 0.75rem; color: #666; margin-top:2px;
-                    letter-spacing:0.08em; text-transform:uppercase;'>
-            Student Wellness Tracker
-        </div>
-    </div>
     """, unsafe_allow_html=True)
 
     page = st.radio(
