@@ -52,7 +52,7 @@ def show():
                 except Exception as e:
                     st.error(f"Error: {e}")
 
-        st.markdown("<br>#### All Students")
+        st.markdown("<br><h4>All Students</h4>", unsafe_allow_html=True)
         try:
             s_df = get_df("""
                 SELECT s.Student_ID AS ID, s.Name,
@@ -96,7 +96,7 @@ def show():
                 except Exception as e:
                     st.error(f"Error: {e}")
 
-        st.markdown("<br>#### All Courses")
+        st.markdown("<br><h4>All Courses</h4>", unsafe_allow_html=True)
         try:
             c_df = get_df("""
                 SELECT Course_ID AS ID, Course_Name AS Name,
@@ -142,7 +142,7 @@ def show():
                 else:
                     st.error(f"Error: {e}")
 
-        st.markdown("<br>#### Enrollment Overview")
+        st.markdown("<br><h4>Enrollment Overview</h4>", unsafe_allow_html=True)
         try:
             enroll_df = get_df("""
                 SELECT s.Name AS Student,

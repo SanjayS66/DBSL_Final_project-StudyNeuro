@@ -230,7 +230,7 @@ def show():
             st.caption(f"Chart error: {e}")
 
     # ── Alert history ────────────────────────────────────────────────────────
-    st.markdown("<br>### Recent Alerts", unsafe_allow_html=True)
+    st.markdown("<br><h3>Recent Alerts</h3>", unsafe_allow_html=True)
     try:
         alerts_df = get_df("""
             SELECT Alert_Type,

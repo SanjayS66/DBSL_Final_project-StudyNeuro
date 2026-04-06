@@ -129,7 +129,7 @@ def show():
                 """, unsafe_allow_html=True)
 
         # Alert trend chart
-        st.markdown("<br>#### Alert Frequency Over Time", unsafe_allow_html=True)
+        st.markdown("<br><h4>Alert Frequency Over Time</h4>", unsafe_allow_html=True)
         try:
             trend_df = get_df("""
                 SELECT TO_CHAR(TRUNC(Created_At),'DD-Mon') AS Day,

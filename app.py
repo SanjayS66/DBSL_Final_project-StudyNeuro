@@ -131,7 +131,7 @@ with st.sidebar:
         <div style='padding: 1.2rem 0 2rem 0;'>
             <div style='font-family: Syne, sans-serif; font-size: 1.5rem;
                         font-weight: 800; color: #f7f5f0; letter-spacing:-0.03em;'>
-                🧠 MindMetrics
+                🧠 StudyNuero
             </div>
             <div style='font-size: 0.75rem; color: #666; margin-top:2px;
                         letter-spacing:0.08em; text-transform:uppercase;'>

@@ -43,7 +43,7 @@ def show():
         high      = int(kpi_df["HIGH_COUNT"].iloc[0] or 0)
         avg_score = kpi_df["AVG_SCORE"].iloc[0]
 
-        k1, k2, k3, k4 = st.columns(4)
+        k1, k2, k3, k4 = st.columns([0.8, 0.8, 0.8, 1.4])
         for col, label, value, color in [
             (k1, "Total Students",   total,     "#0d0d0d"),
             (k2, "Critical Risk",    critical,  "#7f1d1d"),
@@ -147,25 +147,34 @@ def show():
     except Exception as e:
         st.error(f"Error loading student data: {e}")
 
-    # ── Risk distribution bar chart ──────────────────────────────────────────
-    st.markdown("<br>### Risk Distribution", unsafe_allow_html=True)
+
+# ── Risk distribution bar chart ──────────────────────────────────────────
+    st.markdown("<br><h3>Risk Distribution</h3>", unsafe_allow_html=True)
     try:
-        dist_df = get_df("""
-            SELECT NVL(Risk_Level,'Not Calculated') AS Level, COUNT(*) AS Count
+        # Using double quotes for aliases to avoid Oracle Reserved Word conflicts (Level)
+        query = """
+            SELECT 
+                NVL(b.Risk_Level, 'Not Calculated') AS "LEVEL_NAME", 
+                COUNT(*) AS "TOTAL_COUNT"
             FROM Students s
             LEFT JOIN Burnout_Index b ON s.Student_ID = b.Student_ID
-            GROUP BY Risk_Level
-            ORDER BY Count DESC
-        """)
+            GROUP BY NVL(b.Risk_Level, 'Not Calculated')
+            ORDER BY "TOTAL_COUNT" DESC
+        """
+        dist_df = get_df(query)
+
         if not dist_df.empty:
+            # Update these keys to match the new uppercase aliases from the DF
             color_map = {
                 "Low": "#059669", "Moderate": "#d97706",
                 "High": "#dc2626", "Critical": "#7f1d1d",
                 "Not Calculated": "#9ca3af"
             }
-            dist_df["COLOR"] = dist_df["LEVEL"].map(
+            dist_df["COLOR"] = dist_df["LEVEL_NAME"].map(
                 lambda x: color_map.get(x, "#9ca3af")
             )
-            st.bar_chart(dist_df.set_index("LEVEL")["COUNT"])
+            # Set the index using the new alias name
+            st.bar_chart(dist_df.set_index("LEVEL_NAME")["TOTAL_COUNT"])
+            
     except Exception as e:
-        st.caption(f"Chart unavailable: {e}")
+        st.error(f"SQL Error: {e}") # Changed to error for better visibility during debugging

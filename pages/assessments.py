@@ -89,7 +89,7 @@ def show():
             st.error(f"Error loading upcoming assessments: {e}")
 
         # ── ALL ASSESSMENTS TABLE ────────────────────────────────────────────
-        st.markdown("<br>#### All Scheduled Assessments")
+        st.markdown("<br><h4>All Scheduled Assessments</h4>", unsafe_allow_html=True)
         query_all = """
             SELECT 
                 c.Course_Name        AS Course,
